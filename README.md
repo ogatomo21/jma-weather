@@ -12,6 +12,13 @@
 
 codeにはエリアコードを指定します。270000は大阪のコードです。
 
+`day`には今日を`0`、翌日を`1`、翌々日を`2`で指定します。省略時は`0`です。
+
+```txt
+/weather?code=270000&day=1
+/weather?code=270000&day=2
+```
+
 レスポンス例:
 
 ```json
@@ -19,6 +26,7 @@ codeにはエリアコードを指定します。270000は大阪のコードで�
   "status": "ok",
   "publishingOffice": "大阪管区気象台",
   "reportDatetime": "2026-02-17T17:00:00+09:00",
+  "forecastDatetime": "2026-02-17T17:00:00+09:00",
   "areaCode": 270000,
   "areaName": "大阪府",
   "weatherCode": 100,

@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { weatherMap, imageMap, areaCodes, amedasCodes } from './weatherCode'
+import { weatherMap, imageMap, areaCodes, amedasCodes } from './weatherCode.ts'
 
 const app = new Hono()
 const outputError = (c: any) => c.json({ status: 'error' }, 400)
@@ -24,12 +24,14 @@ app.get('/', (c) => {
 <h3>天気予報取得</h3>
 <code>/weather?code=270000</code><br>
 <p>例: <code>code</code>にはエリアコードを指定します。<code>270000</code>は大阪のコードです。</p>
+<p><code>day</code>には今日を<code>0</code>、翌日を<code>1</code>、翌々日を<code>2</code>で指定します。省略時は<code>0</code>です。</p>
 <p>レスポンス例:</p>
 <pre>
 {
   "status": "ok",
   "publishingOffice": "大阪管区気象台",
   "reportDatetime": "2026-02-17T17:00:00+09:00",
+  "forecastDatetime": "2026-02-17T17:00:00+09:00",
   "areaCode": 270000,
   "areaName": "大阪府",
   "weatherCode": 100,
@@ -84,9 +86,11 @@ ${Object.entries(areaCodes)
 
 app.get('/weather', async (c) => {
   const areaCode = c.req.query('code')
-  if (!areaCode) {
+  const dayParam = c.req.query('day') ?? '0'
+  if (!areaCode || !/^[0-2]$/.test(dayParam)) {
     return outputError(c)
   }
+  const day = Number(dayParam)
   const weatherImageBaseURL = "https://www.jma.go.jp/bosai/forecast/img/";
   const url = "https://www.jma.go.jp/bosai/forecast/data/forecast/" + areaCode + ".json";
 
@@ -97,13 +101,19 @@ app.get('/weather', async (c) => {
 
   try {
     const json = JSON.parse(await res.text());
-    const weatherCode = json[0].timeSeries[0].areas[0].weatherCodes[0];
+    const forecasts = json[0]?.timeSeries?.[0];
+    const forecastDatetime = forecasts?.timeDefines?.[day];
+    const weatherCode = forecasts?.areas?.[0]?.weatherCodes?.[day];
+    if (!forecastDatetime || !weatherCode) {
+      return c.json({ status: "error" }, 500)
+    }
     const imgCode = imageMap[weatherCode] || weatherCode;
 
     const result = {
       status: "ok",
       publishingOffice: json[0].publishingOffice || null,
       reportDatetime: json[0].reportDatetime || null,
+      forecastDatetime,
       areaCode: Number(areaCode),
       areaName: areaCodes[areaCode] || null,
       weatherCode: Number(weatherCode),
